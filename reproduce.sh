@@ -16,7 +16,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 log() {
-    printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
+    printf '%s %s\n' "$(date -u +%H:%M:%S)" "$*"
 }
 
 log "Starting Axon Server..."
@@ -49,7 +49,7 @@ fi
 classpath="target/classes:$(cat target/classpath.txt)"
 timer_id="sleep-restart-$(date +%s)-$$"
 start_log="target/reproducer-start.log"
-java -cp "$classpath" io.axoniq.example.reproducer.ReproducerApp schedule "$timer_id" 60 >"$start_log" 2>&1 &
+java -cp "$classpath" io.axoniq.example.reproducer.ReproducerApp schedule "$timer_id" 10 >"$start_log" 2>&1 &
 app_pid=$!
 
 deadline=$((SECONDS + 45))
@@ -62,7 +62,7 @@ while ! grep -q ' SLEEP_PERSISTED deadline=' "$start_log"; do
     sleep 0.1
 done
 cat "$start_log"
-persisted_deadline=$(sed -n 's/.* SLEEP_PERSISTED deadline=//p' "$start_log")
+persisted_deadline=$(cat target/reproducer-deadline.txt)
 sleep 3
 log "KILLING app pid=$app_pid three seconds after the sleep was persisted."
 kill -KILL "$app_pid"

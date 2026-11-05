@@ -3,11 +3,16 @@ package io.axoniq.example.reproducer;
 import io.axoniq.framework.workflow.configuration.WorkflowConfigurer;
 import io.axoniq.framework.workflow.configuration.WorkflowModule;
 import io.axoniq.framework.workflow.dsl.simple.SimpleWorkflowContext;
+import io.axoniq.framework.workflow.runtime.execution.WorkflowEngine;
 import org.axonframework.eventsourcing.eventstore.EventStore;
 import org.axonframework.messaging.eventhandling.gateway.EventGateway;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -15,10 +20,17 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class ReproducerApp {
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneOffset.UTC);
+
+    static String time(Instant instant) {
+        return TIME.format(instant);
+    }
+
     static void log(String message) {
-        System.out.println(Instant.now() + " " + message);
+        System.out.println(time(Instant.now()) + " " + message);
     }
 
     static boolean report(Instant expected, Instant actual) {
@@ -26,7 +38,7 @@ public class ReproducerApp {
         boolean reproduced = earlyMillis > 1_000;
         log(String.format(Locale.ROOT, "%s: timeout occurred %.3f seconds early (expected=%s actual=%s)",
                           reproduced ? "BUG REPRODUCED" : "BUG NOT REPRODUCED",
-                          earlyMillis / 1_000.0, expected, actual));
+                          earlyMillis / 1_000.0, time(expected), time(actual)));
         return reproduced;
     }
 
@@ -61,7 +73,7 @@ public class ReproducerApp {
                             started.complete(Instant.parse(Objects.requireNonNull(payload.get("timeoutTime")).toString()));
                         } else if ("TIMED_OUT".equals(event.metadata().get("stepType"))) {
                             var actual = Instant.parse(event.payload().toString());
-                            log("TIMED_OUT actual=" + actual);
+                            log("TIMED_OUT actual=" + time(actual));
                             timedOut.complete(actual);
                         } else if ("COMPLETED".equals(event.metadata().get("workflowStatus"))) {
                             completed.complete(event.timestamp());
@@ -87,13 +99,27 @@ public class ReproducerApp {
                     var deadline = Instant.now().plusSeconds(seconds);
                     configuration.getComponent(EventGateway.class)
                             .publish(List.of(new SleepScheduled(timerId, deadline.toString()))).join();
-                    log("SCHEDULED timer=%s target=%s".formatted(timerId, deadline));
-                    log("SLEEP_PERSISTED deadline=" + started.get(30, TimeUnit.SECONDS));
+                    log("SCHEDULED timer=%s target=%s".formatted(timerId, time(deadline)));
+                    var persistedDeadline = started.get(30, TimeUnit.SECONDS);
+                    Files.writeString(Path.of("target/reproducer-deadline.txt"), persistedDeadline.toString());
+                    log("SLEEP_PERSISTED deadline=" + time(persistedDeadline));
                     new CountDownLatch(1).await();
                 } else {
-                    log("RESUMING timer=%s persistedDeadline=%s".formatted(timerId, expected));
+                    log("RESUMING timer=%s persistedDeadline=%s".formatted(timerId, time(expected)));
                     var completionTime = completed.get(90, TimeUnit.SECONDS);
-                    log("WORKFLOW_COMPLETED at=" + completionTime);
+                    log("WORKFLOW_COMPLETED at=" + time(completionTime));
+                    // The committed event precedes driver termination; wait before shutting down the engine.
+                    var engine = configuration.getModuleConfiguration(module.name())
+                            .orElseThrow(() -> new IllegalStateException("Workflow module is missing."))
+                            .getComponent(WorkflowEngine.class, "WorkflowEngine[" + module.name() + "]");
+                    long terminationDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                    while (engine.workflowExecutions().stream()
+                            .anyMatch(execution -> timerId.equals(execution.workflowId()))) {
+                        if (System.nanoTime() >= terminationDeadline) {
+                            throw new TimeoutException("Workflow driver did not terminate after completion.");
+                        }
+                        Thread.sleep(10);
+                    }
                     if (!report(expected, timedOut.get(5, TimeUnit.SECONDS))) {
                         throw new IllegalStateException("Expected a timeout more than one second early.");
                     }

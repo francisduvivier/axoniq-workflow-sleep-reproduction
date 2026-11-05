@@ -24,7 +24,8 @@ public class SleepWorkflow {
         var now = clock.instant();
         var remaining = Duration.between(now, deadline);
         var timeout = remaining.isNegative() ? Duration.ZERO : remaining;
-        ReproducerApp.log("CALCULATED now=%s target=%s sleep=%s".formatted(now, deadline, timeout));
+        ReproducerApp.log("CALCULATED now=%s target=%s sleep=%s".formatted(
+                ReproducerApp.time(now), ReproducerApp.time(deadline), timeout));
         context.sleep("wait", step -> step.timeout(timeout)).await();
     }
 }

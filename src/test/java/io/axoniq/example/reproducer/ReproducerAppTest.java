@@ -24,8 +24,10 @@ class ReproducerAppTest {
         }
         String log = output.toString(StandardCharsets.UTF_8);
         assertTrue(log.contains("BUG REPRODUCED: timeout occurred 5.610 seconds early"));
-        assertTrue(log.contains("expected=2026-01-01T12:01:00Z"));
-        assertTrue(log.contains("actual=2026-01-01T12:00:54.390Z"));
+        assertTrue(log.contains("expected=12:01:00"));
+        assertTrue(log.contains("actual=12:00:54"));
+        assertFalse(log.contains("2026-"));
+        assertFalse(log.contains("Z"));
     }
 
     @Test

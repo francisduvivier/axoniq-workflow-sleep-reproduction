@@ -5,7 +5,7 @@
 * Axoniq Framework version: **5.4.1**
 * Axon Framework version (when different from Axoniq Framework version): **5.4.1** (same)
 * JDK version: **Eclipse Temurin OpenJDK 21.0.6+7-LTS**
-* Complete executable reproducer if available (e.g. GitHub Repo): Local `axon-workflow-example` Maven project; not yet published.
+* Complete executable reproducer if available (e.g. GitHub Repo): This repository; run `./reproduce.sh` (requires JDK 21+, Maven 3.9+, Docker Compose, Bash, and curl).
 * Setup: Axon Server **2026.1.7**, DCB-enabled `default` context, persistent Docker volumes.
 
 ### Steps to reproduce
@@ -19,14 +19,7 @@ var timeout = remaining.isNegative() ? Duration.ZERO : remaining;
 context.sleep("wait", step -> step.timeout(timeout)).await();
 ```
 
-1. Run `docker compose up -d`, wait for Axon Server to be ready, then start one application instance:
-
-   ```sh
-   mvn -q compile exec:java -Dexec.mainClass=io.axoniq.example.timer.TimerApp
-   ```
-
-2. Enter `deadline 60`. About three seconds after the sleep starts, enter `q`.
-3. Restart the application before the deadline, leaving Axon Server running. Compare the original deadline with the persisted `WaitTimedOut` event.
+Run `./reproduce.sh`. It starts Axon Server, schedules a 10-second timer, kills the JVM with `SIGKILL` three seconds after the sleep is persisted, and restarts the app against the same event store. Compare the logged persisted deadline with the actual timeout.
 
 ### Expected behaviour
 
@@ -34,16 +27,14 @@ An already-started sleep should preserve its original timeout deadline after res
 
 ### Actual behaviour
 
-Reproduced on **5.4.1**: the sleep timed out and the workflow completed approximately **5.6 seconds early**. Observed timestamps on 2026-11-05, in UTC:
+Reproduced on **5.4.1** with the 10-second scenario: the sleep timed out approximately **4.35 seconds early**, followed by workflow completion before the deadline. Observed timestamps on 2026-11-05, in UTC:
 
 | Observation | Timestamp/value |
 |---|---|
-| Persisted `WaitStarted.timeoutTime` | `16:23:47.038449Z` |
-| Current time during replay | `16:22:52.950229Z` |
-| Recalculated sleep duration | `PT54.080272S` |
-| `WaitTimedOut` payload timestamp | `16:23:41.420177Z` |
-| Workflow completion event timestamp | `16:23:41.519Z` |
-
-The verification used the same production workflow body under a test-only event/workflow name to avoid interference from another running application.
+| Persisted `WaitStarted.timeoutTime` | `16:55:57.302478Z` |
+| Current time during replay | `16:55:51.882247Z` |
+| Recalculated sleep duration | `PT5.418199S` |
+| `WaitTimedOut` payload timestamp | `16:55:52.950080Z` |
+| Workflow completion event timestamp | `16:55:52.992864Z` |
 
 Source inspection of `WaitForDelegate` in 5.4.1 suggests the cause: replay computes `original step timestamp + newly supplied duration`, rather than using the persisted `timeoutTime`.
