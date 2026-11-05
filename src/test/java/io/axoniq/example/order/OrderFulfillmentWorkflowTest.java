@@ -10,7 +10,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OrderFulfillmentWorkflowTest {
     private WorkflowTestFixture<GivenWhen.Phase, Then.Phase> fixture;
@@ -19,7 +24,8 @@ class OrderFulfillmentWorkflowTest {
     void setUp() {
         var module = WorkflowModule.defaults("order-workflows", SimpleWorkflowContext.class)
                 .definition(d -> d.autodetected(c -> new OrderFulfillmentWorkflow()));
-        fixture = WorkflowTestFixture.of(module);
+        fixture = WorkflowTestFixture.of(module, configurer -> configurer.componentRegistry(
+                registry -> StoredEventLogger.register(registry)));
     }
 
     @AfterEach
@@ -45,5 +51,34 @@ class OrderFulfillmentWorkflowTest {
                 .executionExists()
                 .executeReturning("reserveStock", Map.of("reserved", false));
         fixture.then().workflowFinished(WorkflowStatus.FAILED);
+    }
+
+    @Test
+    void printsStoredOrderAndWorkflowEvents() {
+        var original = System.out;
+        var output = new ByteArrayOutputStream();
+        try (var capture = new PrintStream(output, true, StandardCharsets.UTF_8)) {
+            System.setOut(capture);
+            fixture.when().publishEvent(new OrderPlaced("order-log", "customer-log", "log@example.com", 12.5))
+                    .executionExists()
+                    .execute("reserveStock");
+            fixture.then().workflowFinished(WorkflowStatus.COMPLETED);
+        } finally {
+            System.setOut(original);
+        }
+        String log = output.toString(StandardCharsets.UTF_8);
+        assertTrue(log.contains("OrderPlaced"), log);
+        assertTrue(log.contains("order-log"), log);
+        assertTrue(log.contains("log@example.com"), log);
+        assertTrue(log.contains("OrderFulfillmentStarted"), log);
+        assertTrue(log.contains("ReserveStockStarted"), log);
+        assertTrue(log.contains("ReserveStockCompleted"), log);
+        assertTrue(log.contains("OrderFulfillmentCompleted"), log);
+        assertTrue(log.contains("workflowId"), log);
+        assertTrue(log.contains("correlationId"), log);
+        assertTrue(log.contains("id="), log);
+        assertTrue(log.contains("metadata="), log);
+        assertTrue(log.contains("timestamp="), log);
+        assertTrue(log.contains("tags="), log);
     }
 }
