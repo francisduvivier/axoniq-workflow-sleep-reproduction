@@ -1,6 +1,7 @@
 package io.axoniq.example.order;
 
 import io.axoniq.framework.workflow.configuration.WorkflowModule;
+import io.axoniq.framework.axonserver.connector.configuration.AxonServerConfigurationEnhancer;
 import io.axoniq.framework.workflow.dsl.simple.SimpleWorkflowContext;
 import io.axoniq.framework.workflow.runtime.test.fixture.GivenWhen;
 import io.axoniq.framework.workflow.runtime.test.fixture.Then;
@@ -24,8 +25,10 @@ class OrderFulfillmentWorkflowTest {
     void setUp() {
         var module = WorkflowModule.defaults("order-workflows", SimpleWorkflowContext.class)
                 .definition(d -> d.autodetected(c -> new OrderFulfillmentWorkflow()));
-        fixture = WorkflowTestFixture.of(module, configurer -> configurer.componentRegistry(
-                registry -> StoredEventLogger.register(registry)));
+        fixture = WorkflowTestFixture.of(module, configurer -> configurer.componentRegistry(registry -> {
+            registry.disableEnhancer(AxonServerConfigurationEnhancer.class);
+            StoredEventLogger.register(registry);
+        }));
     }
 
     @AfterEach

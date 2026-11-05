@@ -1,6 +1,7 @@
 package io.axoniq.example.order;
 
 import io.axoniq.framework.workflow.annotation.Workflow;
+import io.axoniq.framework.axonserver.connector.configuration.AxonServerConfigurationEnhancer;
 import io.axoniq.framework.workflow.configuration.WorkflowModule;
 import io.axoniq.framework.workflow.dsl.simple.SimpleWorkflowContext;
 import io.axoniq.framework.workflow.runtime.test.fixture.WorkflowTestDriver;
@@ -93,6 +94,7 @@ class WorkflowRestartTest {
         var module = WorkflowModule.defaults("restart-example", SimpleWorkflowContext.class)
                 .definition(d -> d.autodetected(c -> new SleepingWorkflow()));
         return WorkflowTestDriver.stepper(module, false, configurer -> configurer.componentRegistry(registry -> {
+            registry.disableEnhancer(AxonServerConfigurationEnhancer.class);
             registry.registerComponent(EventStorageEngine.class, c -> storage);
             registry.registerComponent(TokenStore.class, c -> tokens);
             registry.registerComponent(TestClock.class, c -> clock);

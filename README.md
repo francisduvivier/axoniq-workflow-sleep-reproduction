@@ -1,8 +1,35 @@
 # Axon Workflow example
 
-An executable companion to the [Axon Workflow Engine getting-started guide](https://docs.axoniq.io/axon-workflow-getting-started/5.4/), using Java 21, Maven and Axoniq Framework 5.4.1.
+An executable companion to the [Axon Workflow Engine getting-started guide](https://docs.axoniq.io/axon-workflow-getting-started/5.4/), using Java 21, Maven and Axoniq Framework 5.4.0.
 
-## Run
+## Run the terminal app
+
+Start Axon Server with Docker Compose:
+
+```sh
+docker compose up -d
+```
+
+The container starts before Axon Server is ready. On first startup, wait for the
+`default: context default created` message:
+
+```sh
+docker compose logs -f axonserver
+```
+
+Press Ctrl+C to stop following the logs (the server keeps running), then run:
+
+```sh
+mvn -q compile exec:java -Dexec.mainClass=io.axoniq.example.timer.TimerApp
+```
+
+Enter a number of seconds to start a timer. The app prints each workflow and step event with a local-time timestamp, payload and metadata; enter `q` to quit. The workflow uses `sleep(...).await()` to wait for the deadline and can resume after the app restarts. The Axon Server web interface is at <http://localhost:8024>.
+
+The Compose setup creates a DCB-enabled `default` context on a fresh server and stores events in Docker volumes. `docker compose stop` stops the server without deleting its data. The cluster template is applied only on first initialization; an existing non-DCB server needs a DCB context before the app can connect. This setup is for local learning, with access control disabled and ports bound to localhost.
+
+Axon Server and the workflow engine are subject to Axoniq's licensing terms. The server reports a 12-hour unregistered trial; see [Axoniq pricing](https://www.axoniq.io/pricing) for free individual evaluation and registration.
+
+## Run the tests
 
 Install JDK 21 or newer and Maven 3.9, then run:
 
@@ -30,6 +57,6 @@ The test uses a separate workflow and advances a test clock: three seconds befor
 
 The current `OrderFulfillmentWorkflow` uses `sleep(String, Duration)`, which starts a sleep step without waiting for it in this framework version. The restart example uses `awaitSleep` to block until the deadline.
 
-The guide also introduces `PaymentConfirmed` and payment, shipping and notification stubs. These are included for experimentation but are not connected to the workflow: the currently published guide ends after the first stock-reservation workflow. There is no standalone server or persistent event store in this example. The in-memory fixture is for learning and tests, not crash recovery across process restarts.
+The guide also introduces `PaymentConfirmed` and payment, shipping and notification stubs. These are included for experimentation but are not connected to the workflow: the currently published guide ends after the first stock-reservation workflow. The original order tests use an in-memory fixture; only the terminal app connects to Axon Server.
 
-The workflow specifies an explicit name and uses `startOnEventClass`: the guide's default workflow name is rejected by Axoniq Framework 5.4.1, and its unqualified event name does not match the Java record's qualified event name.
+The workflow specifies an explicit name and uses `startOnEventClass`: the guide's default workflow name was rejected by Axoniq Framework 5.4.1, and its unqualified event name did not match the Java record's qualified event name.

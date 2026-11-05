@@ -1,0 +1,18 @@
+axoniq:
+  axonserver:
+    cluster-template:
+      first: localhost:8224
+      replicationGroups:
+        - name: _admin
+          roles:
+            - node: localhost
+              role: PRIMARY
+          contexts:
+            - name: _admin
+        - name: default
+          roles:
+            - node: localhost
+              role: PRIMARY
+          contexts:
+            - name: default
+              dcbContext: true

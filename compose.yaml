@@ -1,0 +1,17 @@
+services:
+  axonserver:
+    image: axoniq/axonserver:2026.1.7
+    hostname: axonserver
+    environment:
+      AXONIQ_AXONSERVER_HOSTNAME: localhost
+    ports:
+      - "127.0.0.1:8024:8024"
+      - "127.0.0.1:8124:8124"
+    volumes:
+      - axonserver-data:/axonserver/data
+      - axonserver-events:/axonserver/events
+      - ./axonserver-cluster.yaml:/axonserver/cluster-template.yml:ro
+
+volumes:
+  axonserver-data:
+  axonserver-events:
