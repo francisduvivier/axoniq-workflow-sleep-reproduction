@@ -1,6 +1,6 @@
 # Axon Workflow example
 
-An executable companion to the [Axon Workflow Engine getting-started guide](https://docs.axoniq.io/axon-workflow-getting-started/5.4/), using Java 21, Maven and Axoniq Framework 5.4.0.
+An executable companion to the [Axon Workflow Engine getting-started guide](https://docs.axoniq.io/axon-workflow-getting-started/5.4/), using Java 21, Maven and Axoniq Framework 5.4.1.
 
 ## Run the terminal app
 
@@ -24,6 +24,15 @@ mvn -q compile exec:java -Dexec.mainClass=io.axoniq.example.timer.TimerApp
 ```
 
 Enter a number of seconds to start a timer. The app prints each workflow and step event with a local-time timestamp, payload and metadata; enter `q` to quit. The workflow uses `sleep(...).await()` to wait for the deadline and can resume after the app restarts. The Axon Server web interface is at <http://localhost:8024>.
+
+To experiment with recalculating a sleep duration on restart, enter `deadline 60`.
+This separate workflow stores an absolute deadline and logs the duration calculated
+from the current time. Quit the app about three seconds after scheduling, then start
+it again without stopping Axon Server. Shutdown and startup can take several seconds,
+so a longer duration leaves time to restart before the deadline. Compare the logged
+deadline and `WaitTimedOut` event: the recalculated duration can make the wait end early.
+This intentionally nondeterministic workflow is an experiment, not a recommended
+timer implementation. A plain `10` uses the original fixed-duration workflow.
 
 The Compose setup creates a DCB-enabled `default` context on a fresh server and stores events in Docker volumes. `docker compose stop` stops the server without deleting its data. The cluster template is applied only on first initialization; an existing non-DCB server needs a DCB context before the app can connect. This setup is for local learning, with access control disabled and ports bound to localhost.
 
