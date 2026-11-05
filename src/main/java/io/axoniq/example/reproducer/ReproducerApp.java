@@ -30,7 +30,7 @@ public class ReproducerApp {
     }
 
     static void log(String message) {
-        System.out.println(time(Instant.now()) + " " + message);
+        System.out.println("[" + time(Instant.now()) + "] " + message);
     }
 
     static boolean report(Instant expected, Instant actual) {

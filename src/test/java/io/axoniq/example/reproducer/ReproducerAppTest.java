@@ -23,6 +23,7 @@ class ReproducerAppTest {
             System.setOut(original);
         }
         String log = output.toString(StandardCharsets.UTF_8);
+        assertTrue(log.matches("\\[\\d{2}:\\d{2}:\\d{2}\\] .*\\R"));
         assertTrue(log.contains("BUG REPRODUCED: timeout occurred 5.610 seconds early"));
         assertTrue(log.contains("expected=12:01:00"));
         assertTrue(log.contains("actual=12:00:54"));

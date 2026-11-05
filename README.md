@@ -12,7 +12,7 @@ Requires JDK 21+, Maven 3.9+, Docker Compose, Bash, and curl. Ports 8024 and 812
 
 The script starts Axon Server 2026.1.7, waits for its DCB context, builds the app, and schedules a 10-second timer. Three seconds after the sleep is committed, it kills that JVM with `SIGKILL` and starts a new JVM using the same persistent event store.
 
-UTC times are displayed as `HH:mm:ss`, without dates or fractional seconds. Deadline storage and timing calculations retain full precision. Logs show the original persisted deadline, recalculated sleep duration, actual timeout, and workflow completion:
+Line prefixes show UTC clock time as `[HH:mm:ss]`. Times inside messages also use `HH:mm:ss`, without dates or fractional seconds. Deadline storage and timing calculations retain full precision. Logs show the original persisted deadline, recalculated sleep duration, actual timeout, and workflow completion:
 
 ```text
 BUG REPRODUCED: timeout occurred 4.352 seconds early (expected=16:55:57 actual=16:55:52)

@@ -16,7 +16,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 log() {
-    printf '%s %s\n' "$(date -u +%H:%M:%S)" "$*"
+    printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*"
 }
 
 log "Starting Axon Server..."
